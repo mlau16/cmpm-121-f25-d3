@@ -16,6 +16,11 @@ const CELL_SIZE = 0.0001;
 const INTERACT_RANGE = 3;
 const WIN_VALUE = 16;
 
+const GRID_ORIGIN = {
+  lat: CLASSROOM_LATLNG.lat - CELL_SIZE * 12,
+  lng: CLASSROOM_LATLNG.lng - CELL_SIZE * 12,
+};
+
 // ----- PLAYER STATE -----
 let heldToken: number | null = null;
 const pickedCells = new Set<string>(
@@ -67,8 +72,8 @@ function getCellKey(i: number, j: number): string {
 }
 
 function getCellCenter(i: number, j: number): [number, number] {
-  const lat = CLASSROOM_LATLNG.lat + i * CELL_SIZE + CELL_SIZE / 2;
-  const lng = CLASSROOM_LATLNG.lng + j * CELL_SIZE + CELL_SIZE / 2;
+  const lat = GRID_ORIGIN.lat + (i - 0.25) * CELL_SIZE;
+  const lng = GRID_ORIGIN.lng + (j - 0.82) * CELL_SIZE;
   return [lat, lng];
 }
 
@@ -84,8 +89,17 @@ function saveState() {
   localStorage.setItem("pickedCells", JSON.stringify([...pickedCells]));
 }
 
+function playerCell(): [number, number] {
+  const i = Math.floor((CLASSROOM_LATLNG.lat - GRID_ORIGIN.lat) / CELL_SIZE);
+  const j = Math.floor((CLASSROOM_LATLNG.lng - GRID_ORIGIN.lng) / CELL_SIZE);
+  return [i, j];
+}
+
 function withinRange(i: number, j: number): boolean {
-  return Math.abs(i) <= INTERACT_RANGE && Math.abs(j) <= INTERACT_RANGE;
+  const [pi, pj] = playerCell();
+  const dI = Math.abs(i - pi);
+  const dJ = Math.abs(j - pj);
+  return dI <= INTERACT_RANGE && dJ <= INTERACT_RANGE;
 }
 
 // ----- GAMEPLAY -----
@@ -148,16 +162,34 @@ function makeTokenIcon(value: number) {
 }
 
 function renderGrid() {
-  const range = 10;
-  for (let i = -range; i <= range; i++) {
-    for (let j = -range; j <= range; j++) {
-      const key = getCellKey(i, j);
+  const range = 24;
+
+  for (let i = 0; i <= range; i++) {
+    for (let j = 0; j <= range; j++) {
+      const key = `${i},${j}`;
       if (pickedCells.has(key)) continue;
+
+      const southWest = leaflet.latLng(
+        GRID_ORIGIN.lat + i * CELL_SIZE,
+        GRID_ORIGIN.lng + j * CELL_SIZE,
+      );
+      const northEast = leaflet.latLng(
+        GRID_ORIGIN.lat + (i + 1) * CELL_SIZE,
+        GRID_ORIGIN.lng + (j + 1) * CELL_SIZE,
+      );
+
+      const bounds = leaflet.latLngBounds(southWest, northEast);
+      leaflet.rectangle(bounds, {
+        color: "#cc6600",
+        weight: 1,
+        fillOpacity: 0.05,
+      }).addTo(map);
+
+      const [lat, lng] = getCellCenter(i, j);
 
       const val = tokenValue(i, j);
       if (val === null) continue;
 
-      const [lat, lng] = getCellCenter(i, j);
       const marker = leaflet.marker([lat, lng], { icon: makeTokenIcon(val) })
         .addTo(map)
         .bindTooltip(`${val}`)
