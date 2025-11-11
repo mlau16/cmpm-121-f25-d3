@@ -7,25 +7,16 @@ import "./style.css";
 import luck from "./_luck.ts";
 
 // ----- CONSTANTS -----
-const CLASSROOM_LATLNG = leaflet.latLng(
-  36.997936938057016,
-  -122.05703507501151,
-);
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const CELL_SIZE = 0.0001;
 const INTERACT_RANGE = 3;
 const WIN_VALUE = 16;
 
-const GRID_ORIGIN = {
-  lat: CLASSROOM_LATLNG.lat - CELL_SIZE * 12,
-  lng: CLASSROOM_LATLNG.lng - CELL_SIZE * 12,
-};
+const playerLat = 0;
+const playerLng = 0;
 
 // ----- PLAYER STATE -----
 let heldToken: number | null = null;
-const pickedCells = new Set<string>(
-  JSON.parse(localStorage.getItem("pickedCells") || "[]"),
-);
 
 // ----- UI SETUP -----
 const controlPanelDiv = document.createElement("div");
@@ -48,7 +39,7 @@ function updateHUD() {
 
 // ----- MAP SETUP -----
 const map = leaflet.map(mapDiv, {
-  center: CLASSROOM_LATLNG,
+  center: [playerLat, playerLng],
   zoom: GAMEPLAY_ZOOM_LEVEL,
   minZoom: GAMEPLAY_ZOOM_LEVEL,
   maxZoom: GAMEPLAY_ZOOM_LEVEL,
@@ -62,19 +53,19 @@ leaflet.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }).addTo(map);
 
-const playerMarker = leaflet.marker(CLASSROOM_LATLNG);
-playerMarker.bindTooltip("You are here");
-playerMarker.addTo(map);
-
 // ----- UTILITY FUNCTIONS -----
-function getCellKey(i: number, j: number): string {
-  return `${i},${j}`;
+function latLngToCell(lat: number, lng: number): [number, number] {
+  return [Math.floor(lat / CELL_SIZE), Math.floor(lng / CELL_SIZE)];
 }
 
-function getCellCenter(i: number, j: number): [number, number] {
-  const lat = GRID_ORIGIN.lat + (i - 0.25) * CELL_SIZE;
-  const lng = GRID_ORIGIN.lng + (j - 0.82) * CELL_SIZE;
-  return [lat, lng];
+function cellToCenter(i: number, j: number): [number, number] {
+  return [(i + 0.5) * CELL_SIZE, (j + 0.5) * CELL_SIZE];
+}
+
+function cellToBounds(i: number, j: number): leaflet.LatLngBoundsExpression {
+  const southWest = leaflet.latLng(i * CELL_SIZE, j * CELL_SIZE);
+  const northEast = leaflet.latLng((i + 1) * CELL_SIZE, (j + 1) * CELL_SIZE);
+  return leaflet.latLngBounds(southWest, northEast);
 }
 
 function tokenValue(i: number, j: number): number | null {
@@ -85,33 +76,16 @@ function tokenValue(i: number, j: number): number | null {
   return 4;
 }
 
-function saveState() {
-  localStorage.setItem("pickedCells", JSON.stringify([...pickedCells]));
-}
-
-function playerCell(): [number, number] {
-  const i = Math.floor((CLASSROOM_LATLNG.lat - GRID_ORIGIN.lat) / CELL_SIZE);
-  const j = Math.floor((CLASSROOM_LATLNG.lng - GRID_ORIGIN.lng) / CELL_SIZE);
-  return [i, j];
-}
-
 function withinRange(i: number, j: number): boolean {
-  const [pi, pj] = playerCell();
-  const dI = Math.abs(i - pi);
-  const dJ = Math.abs(j - pj);
-  return dI <= INTERACT_RANGE && dJ <= INTERACT_RANGE;
+  const [pi, pj] = latLngToCell(playerLat, playerLng);
+  return Math.abs(i - pi) <= INTERACT_RANGE &&
+    Math.abs(j - pj) <= INTERACT_RANGE;
 }
 
 // ----- GAMEPLAY -----
 function onCellClick(i: number, j: number, marker: L.Marker) {
   if (!withinRange(i, j)) {
     alert("Too far away!");
-    return;
-  }
-
-  const key = getCellKey(i, j);
-  if (pickedCells.has(key)) {
-    alert("This cell is empty now.");
     return;
   }
 
@@ -123,16 +97,11 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
 
   // --- LOGIC ---
   if (heldToken === null) {
-    // pick up
     heldToken = value;
-    pickedCells.add(key);
-    saveState();
     marker.remove();
   } else if (heldToken === value) {
     const newValue = value * 2;
     heldToken = newValue;
-    pickedCells.add(key);
-    saveState();
     marker.setIcon(makeTokenIcon(newValue));
     marker.bindTooltip(`${newValue}`);
     alert(`✨ Merged into ${newValue}!`);
@@ -162,68 +131,33 @@ function makeTokenIcon(value: number) {
 }
 
 function renderGrid() {
-  const range = 24;
+  const [iCenter, jCenter] = latLngToCell(playerLat, playerLng);
+  const range = 12;
 
-  for (let i = 0; i <= range; i++) {
-    for (let j = 0; j <= range; j++) {
-      const key = `${i},${j}`;
-      if (pickedCells.has(key)) continue;
+  for (let di = 0; di <= range; di++) {
+    for (let dj = 0; dj <= range; dj++) {
+      const i = iCenter + di;
+      const j = jCenter + dj;
 
-      const southWest = leaflet.latLng(
-        GRID_ORIGIN.lat + i * CELL_SIZE,
-        GRID_ORIGIN.lng + j * CELL_SIZE,
-      );
-      const northEast = leaflet.latLng(
-        GRID_ORIGIN.lat + (i + 1) * CELL_SIZE,
-        GRID_ORIGIN.lng + (j + 1) * CELL_SIZE,
-      );
-
-      const bounds = leaflet.latLngBounds(southWest, northEast);
+      const bounds = cellToBounds(i, j);
       leaflet.rectangle(bounds, {
         color: "#cc6600",
         weight: 1,
         fillOpacity: 0.05,
       }).addTo(map);
 
-      const [lat, lng] = getCellCenter(i, j);
-
       const val = tokenValue(i, j);
       if (val === null) continue;
 
+      const [lat, lng] = cellToCenter(i, j);
       const marker = leaflet.marker([lat, lng], { icon: makeTokenIcon(val) })
         .addTo(map)
-        .bindTooltip(`${val}`)
         .on("click", () => onCellClick(i, j, marker));
     }
   }
 }
-
-function drawGrid() {
-  const range = 50;
-
-  for (let i = -range; i <= range; i++) {
-    for (let j = -range; j <= range; j++) {
-      const southWest = leaflet.latLng(
-        CLASSROOM_LATLNG.lat + i * CELL_SIZE,
-        CLASSROOM_LATLNG.lng + j * CELL_SIZE,
-      );
-      const northEast = leaflet.latLng(
-        CLASSROOM_LATLNG.lat + (i + 1) * CELL_SIZE,
-        CLASSROOM_LATLNG.lng + (j + 1) * CELL_SIZE,
-      );
-
-      const bounds = leaflet.latLngBounds(southWest, northEast);
-
-      leaflet.rectangle(bounds, {
-        color: "#ff7800",
-        weight: 1,
-        fillOpacity: 0.05,
-      }).addTo(map);
-    }
-  }
-}
+map.on("moveend", renderGrid);
 
 // ----- INIT -----
 updateHUD();
 renderGrid();
-drawGrid();
