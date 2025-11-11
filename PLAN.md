@@ -22,7 +22,7 @@ Key technical challenge: Can you assemble a map-based user interface using the L
 
 Key gameplay challenge: Can players collect and craft tokens from nearby locations to finally make one of sufficiently high value?
 
-### Steps
+### Steps for D3.a
 
 - [x] copy main.ts to reference.ts for future reference
 - [x] delete everything in main.ts
@@ -35,3 +35,16 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] implement other cell/merge logics
 
 ---
+
+## D3.b: Globe-spanning Gameplay
+
+Expand the game from a fixed location to a globe-spanning grid system.
+Players can move around the world and generate new cells dynamically and interact with local ones.
+
+### Steps for D3.b
+
+- [] Add a Global coordinate system
+- [] Add player movement buttons
+- [] Create dynamic cell spawning so when player moves, cells generate to make the map always full
+- [] Update interaction to use player's current location
+- [] ...
