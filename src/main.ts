@@ -145,7 +145,7 @@ function renderGrid() {
   leaflet.marker([playerLat, playerLng], { icon: playerIcon }).addTo(map);
 
   const [iCenter, jCenter] = latLngToCell(playerLat, playerLng);
-  const range = 12;
+  const range = 24;
 
   for (let di = -range; di <= range; di++) {
     for (let dj = -range; dj <= range; dj++) {
