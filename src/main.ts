@@ -12,8 +12,8 @@ const CELL_SIZE = 0.0001;
 const INTERACT_RANGE = 3;
 const WIN_VALUE = 16;
 
-const playerLat = 0;
-const playerLng = 0;
+let playerLat = 0;
+let playerLng = 0;
 
 // ----- PLAYER STATE -----
 let heldToken: number | null = null;
@@ -52,66 +52,6 @@ leaflet.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution:
     '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }).addTo(map);
-
-// ----- MOVEMENT BUTTONS -----
-function createPanel(){
-  const movePanel = document.createElement("div");
-  movePanel.id = "movePanel";
-
-  Object.assign(movePanel.style, {
-    position: "absolute",
-    bottom: "5px",
-    right: "20px",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "6px",
-    background: "rgba(255, 255, 255, 0.8)",
-    padding: "25px",
-    borderRadius: "16px",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-  });
-
-movePanel.innerHTML = `
-  <div>
-    <button id="moveN" class="move-btn">⬆️</button>
-  </div>
-  <div style="display:flex; gap:6px;">
-    <button id="moveW" class="move-btn">⬅️</button>
-    <button id="moveS" class="move-btn">⬇️</button>
-    <button id="moveE" class="move-btn">➡️</button>
-  </div>
-`;
-  document.body.append(movePanel);
-  styleButtons();
-}
-
-// ----- BUTTON STYLE -----
-function styleButtons() {
-const moveButtons = document.querySelectorAll<HTMLButtonElement>(".move-btn");
-  moveButtons.forEach((btn) => {
-    Object.assign(btn.style, {
-      all: "unset",
-      fontSize: "18px",
-      background: "f4f4f4",
-      border: "2px solid #aaa",
-      borderRadius: "6px",
-      padding: "8px 10px",
-      cursor: "pointer",
-      transition: "all 0.2s ease",
-
-    });
-
-    btn.addEventListener("mouseenter", () => {
-      btn.style.background = "#e0e0e0";
-      btn.style.borderColor = "#888";
-    });
-    btn.addEventListener("mouseleave", () => {
-      btn.style.background = "#f5f5f5";
-      btn.style.borderColor = "#aaa";
-    });
-  });
-}
 
 // ----- UTILITY FUNCTIONS -----
 function latLngToCell(lat: number, lng: number): [number, number] {
@@ -191,11 +131,22 @@ function makeTokenIcon(value: number) {
 }
 
 function renderGrid() {
+  map.eachLayer((layer) => {
+    if (!(layer instanceof leaflet.TileLayer)) map.removeLayer(layer);
+  });
+
+  const playerIcon = leaflet.divIcon({
+    html: "🧍‍♀️",
+    className: "",
+    iconSize: [32, 32],
+  });
+  leaflet.marker([playerLat, playerLng], { icon: playerIcon }).addTo(map);
+
   const [iCenter, jCenter] = latLngToCell(playerLat, playerLng);
   const range = 12;
 
-  for (let di = 0; di <= range; di++) {
-    for (let dj = 0; dj <= range; dj++) {
+  for (let di = -range; di <= range; di++) {
+    for (let dj = -range; dj <= range; dj++) {
       const i = iCenter + di;
       const j = jCenter + dj;
 
@@ -214,6 +165,93 @@ function renderGrid() {
         .addTo(map)
         .on("click", () => onCellClick(i, j, marker));
     }
+  }
+}
+
+// ----- PLAYER MOVEMENT -----
+function movePlayer(dI: number, dJ: number) {
+  const [i, j] = latLngToCell(playerLat, playerLng);
+  const newI = i + dI;
+  const newJ = j + dJ;
+  [playerLat, playerLng] = cellToCenter(newI, newJ);
+  map.setView([playerLat, playerLng]);
+  renderGrid();
+}
+
+// ----- MOVEMENT BUTTONS -----
+function createPanel() {
+  const movePanel = document.createElement("div");
+  movePanel.id = "movePanel";
+
+  Object.assign(movePanel.style, {
+    position: "absolute",
+    bottom: "5px",
+    right: "20px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "6px",
+    background: "rgba(255, 255, 255, 0.8)",
+    padding: "25px",
+    borderRadius: "16px",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+  });
+
+  movePanel.innerHTML = `
+  <div>
+    <button id="moveN" class="move-btn">⬆️</button>
+  </div>
+  <div style="display:flex; gap:6px;">
+    <button id="moveW" class="move-btn">⬅️</button>
+    <button id="moveS" class="move-btn">⬇️</button>
+    <button id="moveE" class="move-btn">➡️</button>
+  </div>
+`;
+  document.body.append(movePanel);
+  styleButtons();
+  moveHandler();
+}
+
+// ----- BUTTON STYLE -----
+function styleButtons() {
+  const moveButtons = document.querySelectorAll<HTMLButtonElement>(".move-btn");
+  moveButtons.forEach((btn) => {
+    Object.assign(btn.style, {
+      all: "unset",
+      fontSize: "18px",
+      background: "f4f4f4",
+      border: "2px solid #aaa",
+      borderRadius: "6px",
+      padding: "8px 10px",
+      cursor: "pointer",
+      transition: "all 0.2s ease",
+    });
+
+    btn.addEventListener("mouseenter", () => {
+      btn.style.background = "#e0e0e0";
+      btn.style.borderColor = "#888";
+    });
+    btn.addEventListener("mouseleave", () => {
+      btn.style.background = "#f5f5f5";
+      btn.style.borderColor = "#aaa";
+    });
+  });
+}
+
+// ----- MOVEMENT LOGIC -----
+function moveHandler() {
+  const moves: Record<string, [number, number]> = {
+    moveN: [1, 0],
+    moveS: [-1, 0],
+    moveE: [0, 1],
+    moveW: [0, -1],
+  };
+
+  for (const [id, [dI, dJ]] of Object.entries(moves)) {
+    document.getElementById(id)?.addEventListener(
+      "click",
+      () => movePlayer(dI, dJ),
+    );
   }
 }
 map.on("moveend", renderGrid);
