@@ -10,7 +10,7 @@ import luck from "./_luck.ts";
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const CELL_SIZE = 0.0001;
 const INTERACT_RANGE = 3;
-const WIN_VALUE = 16;
+const WIN_VALUE = 32;
 
 let playerLat = 0;
 let playerLng = 0;
@@ -71,9 +71,11 @@ function cellToBounds(i: number, j: number): leaflet.LatLngBoundsExpression {
 function tokenValue(i: number, j: number): number | null {
   const r = luck(`${i},${j}`);
   if (r < 0.75) return null; // 75% empty
-  if (r < 0.9) return 1;
-  if (r < 0.97) return 2;
-  return 4;
+  if (r < 0.85) return 1;
+  if (r < 0.93) return 2;
+  if (r < 0.97) return 4;
+  if (r < 0.995) return 8;
+  return 16;
 }
 
 function withinRange(i: number, j: number): boolean {

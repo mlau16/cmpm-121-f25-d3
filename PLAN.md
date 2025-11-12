@@ -47,5 +47,4 @@ Players can move around the world and generate new cells dynamically and interac
 - [x] Add player movement buttons
 - [x] Add player movement
 - [x] Create dynamic cell spawning so when player moves, cells generate to make the map always full
-- [] Update interaction to use player's current location
-- [] ...
+- [x] Game requires a higher value to be merged for victory
