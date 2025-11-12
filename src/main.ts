@@ -1,9 +1,7 @@
 import leaflet from "leaflet";
-
 import "leaflet/dist/leaflet.css";
 import "./_leafletWorkaround.ts";
 import "./style.css";
-
 import luck from "./_luck.ts";
 
 // ----- CONSTANTS -----
@@ -12,10 +10,9 @@ const CELL_SIZE = 0.0001;
 const INTERACT_RANGE = 3;
 const WIN_VALUE = 32;
 
+// ----- PLAYER STATE -----
 let playerLat = 0;
 let playerLng = 0;
-
-// ----- PLAYER STATE -----
 let heldToken: number | null = null;
 
 // ----- UI SETUP -----
@@ -70,7 +67,7 @@ function cellToBounds(i: number, j: number): leaflet.LatLngBoundsExpression {
 
 function tokenValue(i: number, j: number): number | null {
   const r = luck(`${i},${j}`);
-  if (r < 0.75) return null; // 75% empty
+  if (r < 0.75) return null;
   if (r < 0.85) return 1;
   if (r < 0.93) return 2;
   if (r < 0.97) return 4;
@@ -84,7 +81,7 @@ function withinRange(i: number, j: number): boolean {
     Math.abs(j - pj) <= INTERACT_RANGE;
 }
 
-// ----- GAMEPLAY -----
+// ----- GAMEPLAY LOGIC -----
 function onCellClick(i: number, j: number, marker: L.Marker) {
   if (!withinRange(i, j)) {
     alert("Too far away!");
@@ -97,7 +94,6 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
     return;
   }
 
-  // --- LOGIC ---
   if (heldToken === null) {
     heldToken = value;
     marker.remove();
@@ -132,6 +128,7 @@ function makeTokenIcon(value: number) {
   return leaflet.divIcon({ html, className: "" });
 }
 
+// ----- GRID RENDERING -----
 function renderGrid() {
   map.eachLayer((layer) => {
     if (!(layer instanceof leaflet.TileLayer)) map.removeLayer(layer);
@@ -221,7 +218,7 @@ function styleButtons() {
     Object.assign(btn.style, {
       all: "unset",
       fontSize: "18px",
-      background: "f4f4f4",
+      background: "#f4f4f4",
       border: "2px solid #aaa",
       borderRadius: "6px",
       padding: "8px 10px",
