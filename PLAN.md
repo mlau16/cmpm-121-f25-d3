@@ -45,6 +45,7 @@ Players can move around the world and generate new cells dynamically and interac
 
 - [x] Add a Global coordinate system
 - [] Add player movement buttons
+- [] Add player movement
 - [] Create dynamic cell spawning so when player moves, cells generate to make the map always full
 - [] Update interaction to use player's current location
 - [] ...

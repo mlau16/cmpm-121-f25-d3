@@ -53,13 +53,73 @@ leaflet.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }).addTo(map);
 
+// ----- MOVEMENT BUTTONS -----
+function createPanel(){
+  const movePanel = document.createElement("div");
+  movePanel.id = "movePanel";
+
+  Object.assign(movePanel.style, {
+    position: "absolute",
+    bottom: "5px",
+    right: "20px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "6px",
+    background: "rgba(255, 255, 255, 0.8)",
+    padding: "25px",
+    borderRadius: "16px",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+  });
+
+movePanel.innerHTML = `
+  <div>
+    <button id="moveN" class="move-btn">⬆️</button>
+  </div>
+  <div style="display:flex; gap:6px;">
+    <button id="moveW" class="move-btn">⬅️</button>
+    <button id="moveS" class="move-btn">⬇️</button>
+    <button id="moveE" class="move-btn">➡️</button>
+  </div>
+`;
+  document.body.append(movePanel);
+  styleButtons();
+}
+
+// ----- BUTTON STYLE -----
+function styleButtons() {
+const moveButtons = document.querySelectorAll<HTMLButtonElement>(".move-btn");
+  moveButtons.forEach((btn) => {
+    Object.assign(btn.style, {
+      all: "unset",
+      fontSize: "18px",
+      background: "f4f4f4",
+      border: "2px solid #aaa",
+      borderRadius: "6px",
+      padding: "8px 10px",
+      cursor: "pointer",
+      transition: "all 0.2s ease",
+
+    });
+
+    btn.addEventListener("mouseenter", () => {
+      btn.style.background = "#e0e0e0";
+      btn.style.borderColor = "#888";
+    });
+    btn.addEventListener("mouseleave", () => {
+      btn.style.background = "#f5f5f5";
+      btn.style.borderColor = "#aaa";
+    });
+  });
+}
+
 // ----- UTILITY FUNCTIONS -----
 function latLngToCell(lat: number, lng: number): [number, number] {
   return [Math.floor(lat / CELL_SIZE), Math.floor(lng / CELL_SIZE)];
 }
 
 function cellToCenter(i: number, j: number): [number, number] {
-  return [(i + 0.5) * CELL_SIZE, (j + 0.5) * CELL_SIZE];
+  return [(i + 0.82) * CELL_SIZE, (j + 0.18) * CELL_SIZE];
 }
 
 function cellToBounds(i: number, j: number): leaflet.LatLngBoundsExpression {
@@ -160,4 +220,5 @@ map.on("moveend", renderGrid);
 
 // ----- INIT -----
 updateHUD();
+createPanel();
 renderGrid();
