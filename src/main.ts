@@ -104,6 +104,16 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
 
   const value = getCellValue(i, j);
   if (value === null) {
+  if (heldToken !== null) {
+      const key = cellKey(i, j);
+      modifiedCells.set(key, heldToken);  
+      marker.setIcon(makeTokenIcon(heldToken)); 
+      marker.bindTooltip(`${heldToken}`);
+      heldToken = null;
+      updateHUD();
+      return;
+    }
+
     alert("Nothing here!");
     return;
   }
@@ -113,13 +123,14 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
   if (heldToken === null) {
     heldToken = value;
     modifiedCells.set(key, null);
-    marker.remove();
+
+    marker.setIcon(makeEmptyIcon());
+    marker.unbindTooltip();
   } else if (heldToken === value) {
     const newValue = value * 2;
     heldToken = newValue;
-    modifiedCells.set(key, newValue);
-    marker.setIcon(makeTokenIcon(newValue));
-    marker.bindTooltip(`${newValue}`);
+    modifiedCells.set(key, null);
+    marker.remove(); 
     alert(`✨ Merged into ${newValue}!`);
     if (newValue >= WIN_VALUE) {
       alert("🎉 You win! Congratulations!");
@@ -144,6 +155,17 @@ function makeTokenIcon(value: number) {
     font-weight: bold;
   ">${value}</div>`;
   return leaflet.divIcon({ html, className: "" });
+}
+
+function makeEmptyIcon() {
+  return leaflet.divIcon({
+    html: `<div style="
+      width: 32px;
+      height: 32px;
+      opacity: 0;
+    "></div>`,
+    className: ""
+  });
 }
 
 // ----- GRID RENDERING -----
@@ -175,12 +197,16 @@ function renderGrid() {
       }).addTo(map);
 
       const val = getCellValue(i, j);
-      if (val === null) continue;
-
       const [lat, lng] = cellToCenter(i, j);
-      const marker = leaflet.marker([lat, lng], { icon: makeTokenIcon(val) })
-        .addTo(map)
-        .on("click", () => onCellClick(i, j, marker));
+
+      let marker;
+      if (val === null) {
+        marker = leaflet.marker([lat, lng], { icon: makeEmptyIcon() });
+      } else {
+        marker = leaflet.marker([lat, lng], { icon: makeTokenIcon(val) });
+      }
+
+      marker.addTo(map).on("click", () => onCellClick(i, j, marker));
     }
   }
 }
