@@ -48,3 +48,13 @@ Players can move around the world and generate new cells dynamically and interac
 - [x] Add player movement
 - [x] Create dynamic cell spawning so when player moves, cells generate to make the map always full
 - [x] Game requires a higher value to be merged for victory
+
+## D3.c: Object persistence
+
+Give grid cells memory of their state (empty, value changed, merged, etc.) even when they scroll off-screen but not across page reloads yet.
+
+### Steps for D3.c
+
+-[] Add data structure to store modified cells
+-[] Replace direct calls to tokenValue(i, j)
+-[] Save changes to cells during gameplay
