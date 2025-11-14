@@ -15,6 +15,12 @@ let playerLat = 0;
 let playerLng = 0;
 let heldToken: number | null = null;
 
+const modifiedCells = new Map<string, number | null>();
+
+function cellKey(i: number, j: number): string {
+  return `${i},${j}`;
+}
+
 // ----- UI SETUP -----
 const controlPanelDiv = document.createElement("div");
 controlPanelDiv.id = "controlPanel";
@@ -75,6 +81,14 @@ function tokenValue(i: number, j: number): number | null {
   return 16;
 }
 
+function getCellValue(i: number, j: number): number | null {
+  const key = cellKey(i, j);
+  if (modifiedCells.has(key)) {
+    return modifiedCells.get(key)!;
+  }
+  return tokenValue(i, j);
+}
+
 function withinRange(i: number, j: number): boolean {
   const [pi, pj] = latLngToCell(playerLat, playerLng);
   return Math.abs(i - pi) <= INTERACT_RANGE &&
@@ -88,18 +102,22 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
     return;
   }
 
-  const value = tokenValue(i, j);
+  const value = getCellValue(i, j);
   if (value === null) {
     alert("Nothing here!");
     return;
   }
 
+  const key = cellKey(i, j);
+
   if (heldToken === null) {
     heldToken = value;
+    modifiedCells.set(key, null);
     marker.remove();
   } else if (heldToken === value) {
     const newValue = value * 2;
     heldToken = newValue;
+    modifiedCells.set(key, newValue);
     marker.setIcon(makeTokenIcon(newValue));
     marker.bindTooltip(`${newValue}`);
     alert(`✨ Merged into ${newValue}!`);
@@ -156,7 +174,7 @@ function renderGrid() {
         fillOpacity: 0.05,
       }).addTo(map);
 
-      const val = tokenValue(i, j);
+      const val = getCellValue(i, j);
       if (val === null) continue;
 
       const [lat, lng] = cellToCenter(i, j);
