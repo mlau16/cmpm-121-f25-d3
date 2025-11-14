@@ -1,14 +1,14 @@
 import leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./_leafletWorkaround.ts";
-import "./style.css";
 import luck from "./_luck.ts";
+import "./style.css";
 
 // ----- CONSTANTS -----
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const CELL_SIZE = 0.0001;
 const INTERACT_RANGE = 3;
-const WIN_VALUE = 32;
+const WIN_VALUE = 2048;
 
 // ----- PLAYER STATE -----
 let playerLat = 0;
@@ -102,44 +102,52 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
     return;
   }
 
-  const value = getCellValue(i, j);
-  if (value === null) {
-  if (heldToken !== null) {
-      const key = cellKey(i, j);
-      modifiedCells.set(key, heldToken);  
-      marker.setIcon(makeTokenIcon(heldToken)); 
-      marker.bindTooltip(`${heldToken}`);
-      heldToken = null;
-      updateHUD();
-      return;
-    }
+  const key = cellKey(i, j);
+  const cellValue = getCellValue(i, j);
 
+  if (cellValue === null && heldToken !== null) {
+    modifiedCells.set(key, heldToken);
+    marker.setIcon(makeTokenIcon(heldToken));
+    marker.bindTooltip(`${heldToken}`);
+    heldToken = null;
+    updateHUD();
+    return;
+  }
+
+  if (cellValue === null) {
     alert("Nothing here!");
     return;
   }
 
-  const key = cellKey(i, j);
-
   if (heldToken === null) {
-    heldToken = value;
+    heldToken = cellValue;
     modifiedCells.set(key, null);
+    marker.setIcon(makeEmptyIcon());
+    marker.unbindTooltip();
+    updateHUD();
+    return;
+  }
+
+  if (heldToken === cellValue) {
+    const newValue = cellValue * 2;
+
+    modifiedCells.set(key, null);
+
+    heldToken = newValue;
 
     marker.setIcon(makeEmptyIcon());
     marker.unbindTooltip();
-  } else if (heldToken === value) {
-    const newValue = value * 2;
-    heldToken = newValue;
-    modifiedCells.set(key, null);
-    marker.remove(); 
-    alert(`✨ Merged into ${newValue}!`);
-    if (newValue >= WIN_VALUE) {
-      alert("🎉 You win! Congratulations!");
-    }
-  } else {
-    alert("Different token value. Cannot merge!");
-  }
 
-  updateHUD();
+    alert(`✨ Merged into ${newValue}!`);
+
+    if (newValue >= WIN_VALUE) {
+      alert("🎉 You win! 🎉");
+    }
+
+    updateHUD();
+    return;
+  }
+  alert("Different token value. Cannot merge!");
 }
 
 // ----- TOKEN RENDERING -----
@@ -164,7 +172,7 @@ function makeEmptyIcon() {
       height: 32px;
       opacity: 0;
     "></div>`,
-    className: ""
+    className: "",
   });
 }
 
@@ -199,14 +207,17 @@ function renderGrid() {
       const val = getCellValue(i, j);
       const [lat, lng] = cellToCenter(i, j);
 
-      let marker;
+      let marker: leaflet.Marker;
+
       if (val === null) {
         marker = leaflet.marker([lat, lng], { icon: makeEmptyIcon() });
       } else {
         marker = leaflet.marker([lat, lng], { icon: makeTokenIcon(val) });
       }
 
-      marker.addTo(map).on("click", () => onCellClick(i, j, marker));
+      marker
+        .addTo(map)
+        .on("click", () => onCellClick(i, j, marker));
     }
   }
 }
