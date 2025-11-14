@@ -55,6 +55,9 @@ Give grid cells memory of their state (empty, value changed, merged, etc.) even 
 
 ### Steps for D3.c
 
--[] Add data structure to store modified cells
--[] Replace direct calls to tokenValue(i, j)
--[] Save changes to cells during gameplay
+-[x] Add data structure to store modified cells
+-[x] Replace direct calls to tokenValue(i, j)
+-[x] Save changes to cells during gameplay
+Extras:
+-[x] Make tiles disappear after merging
+-[x] Make tiles droppable
