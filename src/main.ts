@@ -15,7 +15,7 @@ let playerLat = 0;
 let playerLng = 0;
 let heldToken: number | null = null;
 
-const modifiedCells = new Map<string, number | null>();
+const memos = new Map<string, number | null>();
 
 function cellKey(i: number, j: number): string {
   return `${i},${j}`;
@@ -81,10 +81,10 @@ function tokenValue(i: number, j: number): number | null {
   return 16;
 }
 
-function getCellValue(i: number, j: number): number | null {
+function flyCell(i: number, j: number): number | null {
   const key = cellKey(i, j);
-  if (modifiedCells.has(key)) {
-    return modifiedCells.get(key)!;
+  if (memos.has(key)) {
+    return memos.get(key)!;
   }
   return tokenValue(i, j);
 }
@@ -103,10 +103,10 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
   }
 
   const key = cellKey(i, j);
-  const cellValue = getCellValue(i, j);
+  const cellValue = flyCell(i, j);
 
   if (cellValue === null && heldToken !== null) {
-    modifiedCells.set(key, heldToken);
+    memos.set(key, heldToken);
     marker.setIcon(makeTokenIcon(heldToken));
     marker.bindTooltip(`${heldToken}`);
     heldToken = null;
@@ -121,7 +121,7 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
 
   if (heldToken === null) {
     heldToken = cellValue;
-    modifiedCells.set(key, null);
+    memos.set(key, null);
     marker.setIcon(makeEmptyIcon());
     marker.unbindTooltip();
     updateHUD();
@@ -131,7 +131,7 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
   if (heldToken === cellValue) {
     const newValue = cellValue * 2;
 
-    modifiedCells.set(key, null);
+    memos.set(key, null);
 
     heldToken = newValue;
 
@@ -204,7 +204,7 @@ function renderGrid() {
         fillOpacity: 0.05,
       }).addTo(map);
 
-      const val = getCellValue(i, j);
+      const val = flyCell(i, j);
       const [lat, lng] = cellToCenter(i, j);
 
       let marker: leaflet.Marker;
