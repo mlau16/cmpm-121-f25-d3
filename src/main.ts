@@ -288,9 +288,31 @@ class ButtonsDriver implements MovementDriver {
   }
 }
 
-class _GeoDriver implements MovementDriver {
+class GeoDriver implements MovementDriver {
+  watchId: number | null = null;
+  
+  constructor() {
+    if (navigator.geolocation) {
+      this.watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+
+          playerLat = lat;
+          playerLng = lng;
+          map.setView([playerLat, playerLng]);
+          renderGrid();
+        },
+        (err) => console.error("Geo error:", err),
+        { enableHighAccuracy: true }
+      );
+    } else {
+      alert("Geolocation not supported on this device.")
+    }
+  }
+
   moveBy(_di: number, _dj: number) {
-    console.warn("GeoDriver not implemented yet");
+    console.warn("moveBy ignored: GeoDriver controls movement automatically.");
   }
 }
 
@@ -358,6 +380,36 @@ function createPanel() {
   moveHandler();
 }
 
+function createMovementSwitch() {
+  const btn = document.createElement("button");
+  btn.textContent = "Switch Movement Mode";
+
+  Object.assign(btn.style, {
+    position: "absolute",
+    top: "10px",
+    right: "10px",
+    padding: "10px 14px",
+    borderRadius: " 8px",
+    background: "#ffffffaa",
+    border: "1px solid #444",
+    cursor: "pointer",
+  });
+
+  btn.onclick = () => {
+    if (movement instanceof MovementFacade) {
+      if (movement["driver"] instanceof ButtonsDriver) {
+        movement.setDriver(new GeoDriver());
+        btn.textContent = "Mode: Geolocation";
+      } else {
+        movement.setDriver(new ButtonsDriver());
+        btn.textContent = "Mode: Buttons";
+      }
+    }
+  };
+
+  document.body.append(btn);
+}
+
 // ----- BUTTON STYLE -----
 function styleButtons() {
   const moveButtons = document.querySelectorAll<HTMLButtonElement>(".move-btn");
@@ -405,4 +457,5 @@ map.on("moveend", renderGrid);
 // ----- INIT -----
 updateHUD();
 createPanel();
+createMovementSwitch();
 renderGrid();
