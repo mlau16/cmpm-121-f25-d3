@@ -9,6 +9,7 @@ const GAMEPLAY_ZOOM_LEVEL = 19;
 const CELL_SIZE = 0.0001;
 const INTERACT_RANGE = 3;
 const WIN_VALUE = 2048;
+const GAME_STATE_KEY = "d3_game_state_v1";
 
 // ----- PLAYER STATE -----
 let playerLat = 0;
@@ -16,6 +17,8 @@ let playerLng = 0;
 let heldToken: number | null = null;
 
 const memos = new Map<string, number | null>();
+
+loadGameState();
 
 function cellKey(i: number, j: number): string {
   return `${i},${j}`;
@@ -95,6 +98,55 @@ function withinRange(i: number, j: number): boolean {
     Math.abs(j - pj) <= INTERACT_RANGE;
 }
 
+// ----- LOCAL STORAGE FUNCTIONS -----
+function saveGameState() {
+  const data = {
+    lat: playerLat,
+    lng: playerLng,
+    held: heldToken,
+    cells: Array.from(memos.entries()),
+  };
+
+  try {
+    localStorage.setItem(GAME_STATE_KEY, JSON.stringify(data));
+  } catch {
+    console.warn("Could not save to localStorage.");
+  }
+}
+
+function loadGameState() {
+  try {
+    const raw = localStorage.getItem(GAME_STATE_KEY);
+    if (!raw) return;
+
+    const data = JSON.parse(raw);
+
+    playerLat = data.lat ?? 0;
+    playerLng = data.lng ?? 0;
+    heldToken = data.held ?? null;
+
+    memos.clear();
+    if (Array.isArray(data.cells)) {
+      for (const [k, v] of data.cells) {
+        memos.set(k, v);
+      }
+    }
+  } catch {
+    console.warn("Could not load game state.");
+  }
+}
+
+function _newGame() {
+  localStorage.removeItem(GAME_STATE_KEY);
+  memos.clear();
+  heldToken = null;
+  playerLat = 0;
+  playerLng = 0;
+  saveGameState();
+  renderGrid();
+  updateHUD();
+}
+
 // ----- GAMEPLAY LOGIC -----
 function onCellClick(i: number, j: number, marker: L.Marker) {
   if (!withinRange(i, j)) {
@@ -111,6 +163,7 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
     marker.bindTooltip(`${heldToken}`);
     heldToken = null;
     updateHUD();
+    saveGameState();
     return;
   }
 
@@ -125,6 +178,7 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
     marker.setIcon(makeEmptyIcon());
     marker.unbindTooltip();
     updateHUD();
+    saveGameState();
     return;
   }
 
@@ -145,6 +199,7 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
     }
 
     updateHUD();
+    saveGameState();
     return;
   }
   alert("Different token value. Cannot merge!");
@@ -230,6 +285,7 @@ function movePlayer(dI: number, dJ: number) {
   [playerLat, playerLng] = cellToCenter(newI, newJ);
   map.setView([playerLat, playerLng]);
   renderGrid();
+  saveGameState();
 }
 
 // ----- MOVEMENT BUTTONS -----
