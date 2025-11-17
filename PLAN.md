@@ -1,8 +1,8 @@
-# D3: {game title goes here}
+# D3: World of Bits
 
 ## Game Design Vision
 
-{a few-sentence description of the game mechanics}
+Merge tokens across the world using your real location. Win by merging enough tiles to get 2048.
 
 ---
 
@@ -61,3 +61,15 @@ Give grid cells memory of their state (empty, value changed, merged, etc.) even 
 Extras:
 -[x] Make tiles disappear after merging
 -[x] Make tiles droppable
+
+## D3.d: Gameplay Across Real-World Space and Time
+
+Extend game to work across physical space and across page loads.
+
+### Steps for D3.d
+
+-[] persist game state with localStorage
+-[] use Facade design pattern to implement player movement
+-[] use geolocation for real-world movement
+-[] add UI controls for mode and reset
+-[] refactor code
