@@ -277,6 +277,42 @@ function renderGrid() {
   }
 }
 
+// ----- MOVEMENT FACADE -----
+interface MovementDriver {
+  moveBy(di: number, dj: number): void;
+}
+
+class ButtonsDriver implements MovementDriver {
+  moveBy(di: number, dj: number) {
+    movePlayer(di, dj);
+  }
+}
+
+class _GeoDriver implements MovementDriver {
+  moveBy(_di: number, _dj: number) {
+    console.warn("GeoDriver not implemented yet");
+  }
+}
+
+class MovementFacade {
+  private driver: MovementDriver;
+
+  constructor(initialDriver: MovementDriver) {
+    this.driver = initialDriver;
+  }
+
+  setDriver(d: MovementDriver) {
+    this.driver = d;
+  }
+
+  moveBy(di: number, dj: number) {
+    this.driver.moveBy(di, dj);
+  }
+}
+
+//temporary facade
+const movement = new MovementFacade(new ButtonsDriver());
+
 // ----- PLAYER MOVEMENT -----
 function movePlayer(dI: number, dJ: number) {
   const [i, j] = latLngToCell(playerLat, playerLng);
@@ -360,7 +396,7 @@ function moveHandler() {
   for (const [id, [dI, dJ]] of Object.entries(moves)) {
     document.getElementById(id)?.addEventListener(
       "click",
-      () => movePlayer(dI, dJ),
+      () => movement.moveBy(dI, dJ),
     );
   }
 }

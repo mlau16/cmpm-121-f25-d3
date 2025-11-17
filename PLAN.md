@@ -69,7 +69,7 @@ Extend game to work across physical space and across page loads.
 ### Steps for D3.d
 
 -[x] persist game state with localStorage
--[] use Facade design pattern to implement player movement
+-[x] use Facade design pattern to implement player movement
 -[] use geolocation for real-world movement
 -[] add UI controls for mode and reset
 -[] refactor code
