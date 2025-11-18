@@ -72,4 +72,4 @@ Extend game to work across physical space and across page loads.
 -[x] use Facade design pattern to implement player movement
 -[x] use geolocation for real-world movement
 -[x] add UI controls for mode and reset
--[] refactor code
+-[x] refactor code

@@ -4,29 +4,26 @@ import "./_leafletWorkaround.ts";
 import luck from "./_luck.ts";
 import "./style.css";
 
-// ----- CONSTANTS -----
+// ===== CONSTANTS =====
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const CELL_SIZE = 0.0001;
 const INTERACT_RANGE = 3;
 const WIN_VALUE = 2048;
-const GAME_STATE_KEY = "d3_game_state_v1";
+const SAVE_KEY = "d3_game_state_v1";
 
-// ----- PLAYER STATE -----
+// ===== PLAYER STATE =====
 let playerLat = 0;
 let playerLng = 0;
 let heldToken: number | null = null;
 
-const memos = new Map<string, number | null>();
+// ===== MEMENTO STORAGE =====
+const cellMemo = new Map<string, number | null>();
 
 function cellKey(i: number, j: number): string {
   return `${i},${j}`;
 }
 
-// ----- UI SETUP -----
-const controlPanelDiv = document.createElement("div");
-controlPanelDiv.id = "controlPanel";
-document.body.append(controlPanelDiv);
-
+// ===== UI SETUP =====
 const mapDiv = document.createElement("div");
 mapDiv.id = "map";
 document.body.append(mapDiv);
@@ -41,7 +38,7 @@ function updateHUD() {
     : "🎒 Empty hands";
 }
 
-// ----- MAP SETUP -----
+// ===== MAP SETUP =====
 const map = leaflet.map(mapDiv, {
   center: [playerLat, playerLng],
   zoom: GAMEPLAY_ZOOM_LEVEL,
@@ -57,7 +54,7 @@ leaflet.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }).addTo(map);
 
-// ----- UTILITY FUNCTIONS -----
+// ===== UTILITY FUNCTIONS =====
 function latLngToCell(lat: number, lng: number): [number, number] {
   return [Math.floor(lat / CELL_SIZE), Math.floor(lng / CELL_SIZE)];
 }
@@ -72,6 +69,8 @@ function cellToBounds(i: number, j: number): leaflet.LatLngBoundsExpression {
   return leaflet.latLngBounds(southWest, northEast);
 }
 
+// ===== FLYWEIGHT TOKEN GENERATOR =====
+
 function tokenValue(i: number, j: number): number | null {
   const r = luck(`${i},${j}`);
   if (r < 0.75) return null;
@@ -84,8 +83,8 @@ function tokenValue(i: number, j: number): number | null {
 
 function flyCell(i: number, j: number): number | null {
   const key = cellKey(i, j);
-  if (memos.has(key)) {
-    return memos.get(key)!;
+  if (cellMemo.has(key)) {
+    return cellMemo.get(key)!;
   }
   return tokenValue(i, j);
 }
@@ -96,18 +95,18 @@ function withinRange(i: number, j: number): boolean {
     Math.abs(j - pj) <= INTERACT_RANGE;
 }
 
-// ----- LOCAL STORAGE FUNCTIONS -----
+// ===== LOCAL STORAGE FUNCTIONS =====
 function saveGameState() {
   const data = {
     lat: playerLat,
     lng: playerLng,
     held: heldToken,
-    cells: Array.from(memos.entries()),
+    cells: Array.from(cellMemo.entries()),
     mode: (movement["driver"] instanceof GeoDriver) ? "geo" : "buttons",
   };
 
   try {
-    localStorage.setItem(GAME_STATE_KEY, JSON.stringify(data));
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   } catch {
     console.warn("Could not save to localStorage.");
   }
@@ -115,7 +114,7 @@ function saveGameState() {
 
 function loadGameState() {
   try {
-    const raw = localStorage.getItem(GAME_STATE_KEY);
+    const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return;
 
     const data = JSON.parse(raw);
@@ -124,12 +123,8 @@ function loadGameState() {
     playerLng = data.lng ?? 0;
     heldToken = data.held ?? null;
 
-    memos.clear();
-    if (Array.isArray(data.cells)) {
-      for (const [key, val] of data.cells) {
-        memos.set(key, val);
-      }
-    }
+    cellMemo.clear();
+    for (const [key, val] of data.cells ?? []) cellMemo.set(key, val);
 
     if (data.mode === "geo") {
       movement.setDriver(new GeoDriver());
@@ -141,9 +136,9 @@ function loadGameState() {
   }
 }
 
-function _newGame() {
-  localStorage.removeItem(GAME_STATE_KEY);
-  memos.clear();
+function newGame() {
+  localStorage.removeItem(SAVE_KEY);
+  cellMemo.clear();
   heldToken = null;
   playerLat = 0;
   playerLng = 0;
@@ -152,7 +147,7 @@ function _newGame() {
   updateHUD();
 }
 
-// ----- GAMEPLAY LOGIC -----
+// ===== GAMEPLAY LOGIC =====
 function onCellClick(i: number, j: number, marker: L.Marker) {
   if (!withinRange(i, j)) {
     alert("Too far away!");
@@ -163,7 +158,7 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
   const cellValue = flyCell(i, j);
 
   if (cellValue === null && heldToken !== null) {
-    memos.set(key, heldToken);
+    cellMemo.set(key, heldToken);
     marker.setIcon(makeTokenIcon(heldToken));
     marker.bindTooltip(`${heldToken}`);
     heldToken = null;
@@ -179,7 +174,7 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
 
   if (heldToken === null) {
     heldToken = cellValue;
-    memos.set(key, null);
+    cellMemo.set(key, null);
     marker.setIcon(makeEmptyIcon());
     marker.unbindTooltip();
     updateHUD();
@@ -190,7 +185,7 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
   if (heldToken === cellValue) {
     const newValue = cellValue * 2;
 
-    memos.set(key, null);
+    cellMemo.set(key, null);
 
     heldToken = newValue;
 
@@ -210,7 +205,7 @@ function onCellClick(i: number, j: number, marker: L.Marker) {
   alert("Different token value. Cannot merge!");
 }
 
-// ----- TOKEN RENDERING -----
+// ===== TOKEN RENDERING =====
 function makeTokenIcon(value: number) {
   const html = `<div style="
     background: #fff2a8;
@@ -238,15 +233,10 @@ function makeEmptyIcon() {
   });
 }
 
-// ----- GRID RENDERING -----
+// ===== GRID RENDERING =====
 function renderGrid() {
   map.eachLayer((layer) => {
     if (!(layer instanceof leaflet.TileLayer)) map.removeLayer(layer);
-  });
-
-  map.setView([playerLat, playerLng], GAMEPLAY_ZOOM_LEVEL, {
-    paddingTopLeft: [0, 0],
-    paddingBottomRight: [140, 60], // space for UI
   });
 
   const playerIcon = leaflet.divIcon({
@@ -289,7 +279,7 @@ function renderGrid() {
   }
 }
 
-// ----- MOVEMENT FACADE -----
+// ===== MOVEMENT (FACADE PATTERN) =====
 interface MovementDriver {
   moveBy(di: number, dj: number): void;
 }
@@ -346,7 +336,7 @@ class MovementFacade {
 
 const movement = new MovementFacade(new ButtonsDriver());
 
-// ----- PLAYER MOVEMENT -----
+// ===== PLAYER MOVEMENT =====
 function movePlayer(dI: number, dJ: number) {
   const [i, j] = latLngToCell(playerLat, playerLng);
   const newI = i + dI;
@@ -357,7 +347,7 @@ function movePlayer(dI: number, dJ: number) {
   saveGameState();
 }
 
-// ----- BUTTONS -----
+// ===== BUTTONS =====
 function createPanel() {
   const movePanel = document.createElement("div");
   movePanel.id = "movePanel";
@@ -423,27 +413,21 @@ function createMovementSwitch() {
 
 function createResetButton() {
   const btn = document.createElement("button");
+  btn.style.cssText = `
+    position:absolute; top:60px; right:10px;
+    padding:10px 14px; background:#fff9;
+    border:1px solid #444; border-radius:8px;
+    cursor:pointer;
+  `;
   btn.textContent = "New Game";
-  Object.assign(btn.style, {
-    position: "absolute",
-    top: "60px",
-    right: "10px",
-    padding: "10px 14px",
-    borderRadius: " 8px",
-    background: "#ffffffaa",
-    border: "1px solid #444",
-    cursor: "pointer",
-  });
 
   btn.onclick = () => {
-    if (confirm("Start a new game?")) {
-      localStorage.removeItem(GAME_STATE_KEY);
-      location.reload();
-    }
+    if (confirm("Start a new game?")) newGame();
   };
+
   document.body.append(btn);
 }
-// ----- BUTTON STYLE -----
+// ===== BUTTON STYLE =====
 function styleButtons() {
   const moveButtons = document.querySelectorAll<HTMLButtonElement>(".move-btn");
   moveButtons.forEach((btn) => {
@@ -469,7 +453,7 @@ function styleButtons() {
   });
 }
 
-// ----- MOVEMENT LOGIC -----
+// ===== MOVEMENT LOGIC =====
 function moveHandler() {
   const moves: Record<string, [number, number]> = {
     moveN: [1, 0],
@@ -487,7 +471,7 @@ function moveHandler() {
 }
 map.on("moveend", renderGrid);
 
-// ----- INIT -----
+// ===== INIT =====
 
 loadGameState();
 updateHUD();
