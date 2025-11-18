@@ -2,6 +2,7 @@ import leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./_leafletWorkaround.ts";
 import luck from "./_luck.ts";
+import playerImg from "./banana_slug.webp";
 import "./style.css";
 
 // ===== CONSTANTS =====
@@ -102,7 +103,7 @@ function saveGameState() {
     lng: playerLng,
     held: heldToken,
     cells: Array.from(cellMemo.entries()),
-    mode: (movement["driver"] instanceof GeoDriver) ? "geo" : "buttons",
+    mode: movement.mode,
   };
 
   try {
@@ -127,9 +128,9 @@ function loadGameState() {
     for (const [key, val] of data.cells ?? []) cellMemo.set(key, val);
 
     if (data.mode === "geo") {
-      movement.setDriver(new GeoDriver());
+      movement.setDriver(new GeoDriver(), "geo");
     } else {
-      movement.setDriver(new ButtonsDriver());
+      movement.setDriver(new ButtonsDriver(), "buttons");
     }
   } catch {
     console.warn("Could not load game state.");
@@ -137,11 +138,21 @@ function loadGameState() {
 }
 
 function newGame() {
+  movement.getDriver().cleanup?.();
+
   localStorage.removeItem(SAVE_KEY);
   cellMemo.clear();
   heldToken = null;
   playerLat = 0;
   playerLng = 0;
+
+  movement.setDriver(new ButtonsDriver(), "buttons");
+
+  const switchBtn = document.getElementById("movementSwitchBtn");
+  if (switchBtn) switchBtn.textContent = "Mode: Buttons";
+
+  map.setView([playerLat, playerLng]);
+
   saveGameState();
   renderGrid();
   updateHUD();
@@ -239,12 +250,15 @@ function renderGrid() {
     if (!(layer instanceof leaflet.TileLayer)) map.removeLayer(layer);
   });
 
-  const playerIcon = leaflet.divIcon({
-    html: "🧍‍♀️",
-    className: "",
-    iconSize: [32, 32],
+  const playerIcon = leaflet.icon({
+    iconUrl: playerImg,
+    iconSize: [40, 40],
+    iconAnchor: [5, 5],
   });
-  leaflet.marker([playerLat, playerLng], { icon: playerIcon }).addTo(map);
+  leaflet.marker([playerLat, playerLng], {
+    icon: playerIcon,
+    zIndexOffset: 9999,
+  }).addTo(map);
 
   const [iCenter, jCenter] = latLngToCell(playerLat, playerLng);
   const range = 24;
@@ -282,9 +296,11 @@ function renderGrid() {
 // ===== MOVEMENT (FACADE PATTERN) =====
 interface MovementDriver {
   moveBy(di: number, dj: number): void;
+  cleanup?(): void;
 }
 
 class ButtonsDriver implements MovementDriver {
+  cleanup() {}
   moveBy(di: number, dj: number) {
     movePlayer(di, dj);
   }
@@ -313,6 +329,12 @@ class GeoDriver implements MovementDriver {
     }
   }
 
+  cleanup() {
+    if (this.watchId != null) {
+      navigator.geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+    }
+  }
   moveBy(_di: number, _dj: number) {
     console.warn("moveBy ignored: GeoDriver controls movement automatically.");
   }
@@ -320,13 +342,21 @@ class GeoDriver implements MovementDriver {
 
 class MovementFacade {
   private driver: MovementDriver;
+  public mode: "buttons" | "geo";
 
-  constructor(initialDriver: MovementDriver) {
+  constructor(initialDriver: MovementDriver, mode: "buttons" | "geo") {
     this.driver = initialDriver;
+    this.mode = mode;
   }
 
-  setDriver(d: MovementDriver) {
+  getDriver(): MovementDriver {
+    return this.driver;
+  }
+
+  setDriver(d: MovementDriver, mode: "buttons" | "geo") {
+    this.driver.cleanup?.();
     this.driver = d;
+    this.mode = mode;
   }
 
   moveBy(di: number, dj: number) {
@@ -334,7 +364,7 @@ class MovementFacade {
   }
 }
 
-const movement = new MovementFacade(new ButtonsDriver());
+const movement = new MovementFacade(new ButtonsDriver(), "buttons");
 
 // ===== PLAYER MOVEMENT =====
 function movePlayer(dI: number, dJ: number) {
@@ -383,7 +413,8 @@ function createPanel() {
 
 function createMovementSwitch() {
   const btn = document.createElement("button");
-  btn.textContent = "Switch Movement Mode";
+  btn.id = "movementSwitchBtn";
+  btn.textContent = "Mode: Buttons";
 
   Object.assign(btn.style, {
     position: "absolute",
@@ -399,10 +430,10 @@ function createMovementSwitch() {
   btn.onclick = () => {
     if (movement instanceof MovementFacade) {
       if (movement["driver"] instanceof ButtonsDriver) {
-        movement.setDriver(new GeoDriver());
+        movement.setDriver(new GeoDriver(), "geo");
         btn.textContent = "Mode: Geolocation";
       } else {
-        movement.setDriver(new ButtonsDriver());
+        movement.setDriver(new ButtonsDriver(), "buttons");
         btn.textContent = "Mode: Buttons";
       }
     }
