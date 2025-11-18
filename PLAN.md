@@ -71,5 +71,5 @@ Extend game to work across physical space and across page loads.
 -[x] persist game state with localStorage
 -[x] use Facade design pattern to implement player movement
 -[x] use geolocation for real-world movement
--[] add UI controls for mode and reset
+-[x] add UI controls for mode and reset
 -[] refactor code

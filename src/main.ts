@@ -18,8 +18,6 @@ let heldToken: number | null = null;
 
 const memos = new Map<string, number | null>();
 
-loadGameState();
-
 function cellKey(i: number, j: number): string {
   return `${i},${j}`;
 }
@@ -105,6 +103,7 @@ function saveGameState() {
     lng: playerLng,
     held: heldToken,
     cells: Array.from(memos.entries()),
+    mode: (movement["driver"] instanceof GeoDriver) ? "geo" : "buttons",
   };
 
   try {
@@ -127,9 +126,15 @@ function loadGameState() {
 
     memos.clear();
     if (Array.isArray(data.cells)) {
-      for (const [k, v] of data.cells) {
-        memos.set(k, v);
+      for (const [key, val] of data.cells) {
+        memos.set(key, val);
       }
+    }
+
+    if (data.mode === "geo") {
+      movement.setDriver(new GeoDriver());
+    } else {
+      movement.setDriver(new ButtonsDriver());
     }
   } catch {
     console.warn("Could not load game state.");
@@ -225,8 +230,10 @@ function makeEmptyIcon() {
     html: `<div style="
       width: 32px;
       height: 32px;
-      opacity: 0;
-    "></div>`,
+      background: transparent;
+    ">
+      <svg width = "32" height="32"></svg>
+    </div>`,
     className: "",
   });
 }
@@ -235,6 +242,11 @@ function makeEmptyIcon() {
 function renderGrid() {
   map.eachLayer((layer) => {
     if (!(layer instanceof leaflet.TileLayer)) map.removeLayer(layer);
+  });
+
+  map.setView([playerLat, playerLng], GAMEPLAY_ZOOM_LEVEL, {
+    paddingTopLeft: [0, 0],
+    paddingBottomRight: [140, 60], // space for UI
   });
 
   const playerIcon = leaflet.divIcon({
@@ -290,7 +302,7 @@ class ButtonsDriver implements MovementDriver {
 
 class GeoDriver implements MovementDriver {
   watchId: number | null = null;
-  
+
   constructor() {
     if (navigator.geolocation) {
       this.watchId = navigator.geolocation.watchPosition(
@@ -304,10 +316,10 @@ class GeoDriver implements MovementDriver {
           renderGrid();
         },
         (err) => console.error("Geo error:", err),
-        { enableHighAccuracy: true }
+        { enableHighAccuracy: true },
       );
     } else {
-      alert("Geolocation not supported on this device.")
+      alert("Geolocation not supported on this device.");
     }
   }
 
@@ -332,7 +344,6 @@ class MovementFacade {
   }
 }
 
-//temporary facade
 const movement = new MovementFacade(new ButtonsDriver());
 
 // ----- PLAYER MOVEMENT -----
@@ -346,7 +357,7 @@ function movePlayer(dI: number, dJ: number) {
   saveGameState();
 }
 
-// ----- MOVEMENT BUTTONS -----
+// ----- BUTTONS -----
 function createPanel() {
   const movePanel = document.createElement("div");
   movePanel.id = "movePanel";
@@ -410,6 +421,28 @@ function createMovementSwitch() {
   document.body.append(btn);
 }
 
+function createResetButton() {
+  const btn = document.createElement("button");
+  btn.textContent = "New Game";
+  Object.assign(btn.style, {
+    position: "absolute",
+    top: "60px",
+    right: "10px",
+    padding: "10px 14px",
+    borderRadius: " 8px",
+    background: "#ffffffaa",
+    border: "1px solid #444",
+    cursor: "pointer",
+  });
+
+  btn.onclick = () => {
+    if (confirm("Start a new game?")) {
+      localStorage.removeItem(GAME_STATE_KEY);
+      location.reload();
+    }
+  };
+  document.body.append(btn);
+}
 // ----- BUTTON STYLE -----
 function styleButtons() {
   const moveButtons = document.querySelectorAll<HTMLButtonElement>(".move-btn");
@@ -455,7 +488,10 @@ function moveHandler() {
 map.on("moveend", renderGrid);
 
 // ----- INIT -----
+
+loadGameState();
 updateHUD();
 createPanel();
 createMovementSwitch();
+createResetButton();
 renderGrid();
